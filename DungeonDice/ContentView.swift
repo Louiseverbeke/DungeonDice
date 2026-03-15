@@ -8,8 +8,15 @@
 import SwiftUI
 
 struct ContentView: View {
+    enum Dice: Int, CaseIterable, Identifiable {
+        case four = 4, six = 6, eight = 8, ten = 10, twelve = 12, twenty = 20, hundred = 100
+        
+        var id: Int { self.rawValue }
+        
+        var roll: Int { Int.random(in: 1...self.rawValue) }
+    }
+    
     @State private var message = "Roll a die!"
-    private let diceTypes = [4, 6, 8, 10, 12, 20, 100]
     
     var body: some View {
         VStack {
@@ -27,9 +34,9 @@ struct ContentView: View {
             Spacer()
             
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 110))]){
-                ForEach(diceTypes, id: \.self) { diceType in
-                    Button("\(diceType)-sided") {
-                        rollDie(sides: diceType)
+                ForEach(Dice.allCases) { die in
+                    Button("\(die.rawValue)-sided") {
+                        message = "You rolled a \(die.roll) on a \(die)-sided die."
                     }
                                 .font(.title2)
                                 .lineLimit(1)
@@ -40,11 +47,6 @@ struct ContentView: View {
             }
         }
         .padding()
-    }
-    
-    func rollDie(sides: Int) {
-        let result = Int.random(in: 1...sides)
-        message = "You rolled a \(result) on a \(sides)-sided die."
     }
 }
 
