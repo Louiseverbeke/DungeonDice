@@ -10,25 +10,17 @@ import SwiftUI
 struct ContentView: View {
     struct DieGroup: Identifiable {
         var id: Int
-        
         let diceLabel: String
-        let value: Int
-        
         var rollValues: [Int] = []
-        
         var rollString: String {
             rollValues.map {"\($0)"}.joined(separator: ", ") // Creates comma-separated String from rollValues elements
         }
-        
         var subTotal: Int {rollValues.reduce(0, +) } //adds up al of the values in rollValues
     }
     
-    
     enum Dice: Int, CaseIterable, Identifiable {
         case d4 = 4, d6 = 6, d8 = 8, d10 = 10, d12 = 12, d20 = 20, d100 = 100
-        
         var id: Int { self.rawValue }
-        
         var roll: Int { Int.random(in: 1...self.rawValue) }
     }
     
@@ -46,42 +38,12 @@ struct ContentView: View {
                 .foregroundStyle(.red)
             
             GroupBox {
-                
-                ForEach(dieGroups) { dieGroup in
-                    HStack {
-                        Text("\(dieGroup.diceLabel) - ")
-                        
-                        Text("\(dieGroup.rollString)")
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        Text("\(dieGroup.subTotal)")
+                ViewThatFits(in: .vertical) { // Switch to scroll view only when view is too tall
+                    rollList // Fits on screen, no scrolling
+                    
+                    ScrollView {
+                        rollList // Use this if rollist doesn't fit & it needs a ScrollView
                     }
-                    .font(.title3)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.default, value: dieGroup.subTotal)
-                    
-                    Divider()
-                }
-                
-                HStack {
-                    Text("TOTAL: \(grandTotal)")
-                        .font(.title2)
-                        .bold()
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                        .animation(.default, value: grandTotal)
-                    
-                    Spacer()
-                    
-                    Button("Clear") {
-                        dieGroups.removeAll()
-                    }
-                    .buttonStyle(.glass)
-                    .tint(.red)
-                    .disabled(dieGroups.isEmpty)
                 }
             } label: {
                 Text("Session Rolls:")
@@ -102,29 +64,10 @@ struct ContentView: View {
                     }
                 }
             
-            Spacer()
-            
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 110))]){
                 ForEach(Dice.allCases) { die in
                     Button("\(die.rawValue)-sided") {
-                        animationTrigger.toggle()
-                        let roll = die.roll
-                        message = "You rolled a \(roll) on a \(die)."
-                        
-                        //Two cases of append:
-                        //The dieGroup is already in dieGroups (e.g. you've already rolled that type of die. And if that's the case, we just want to append the new roll to the end of the rolls property
-                        //OR
-                        // We need to create a new DieGroup, adding the roll as the only / first element of the .rolls array of that DieGroup
-                        
-                        
-                        // Check if the DieGroup for the die rolled is in the dieGroups list:
-                        if let index = dieGroups.firstIndex(where: {$0.id == die.rawValue }) {
-                            dieGroups[index].rollValues.append(roll) // DieGroup for this die is in the list, just add the roll to it's rollValues array
-                            
-                        } else { // otherwise
-                            dieGroups.append(DieGroup(id: die.rawValue, diceLabel: "\(die)", value: roll, rollValues: [roll])) // Create the DieGroup for that button, which hasn't been previously pressed
-                        }
-                        dieGroups.sort { $0.id < $1.id}
+                        performRoll(die: die)
                     }
                     .font(.title2)
                     .lineLimit(1)
@@ -135,6 +78,77 @@ struct ContentView: View {
             }
         }
         .padding()
+    }
+    func performRoll(die: Dice) {
+        animationTrigger.toggle()
+        let roll = die.roll
+        message = "You rolled a \(roll) on a \(die)."
+        
+        withAnimation(.snappy) {
+            // Check if the DieGroup for the die rolled is in the dieGroups list:
+            if let index = dieGroups.firstIndex(where: {$0.id == die.rawValue }) {
+                dieGroups[index].rollValues.append(roll) // DieGroup for this die is in the list, just add the roll to it's rollValues array
+            } else { // otherwise
+                dieGroups.append(DieGroup(id: die.rawValue, diceLabel: "\(die)", rollValues: [roll])) // Create the DieGroup for that button, which hasn't been previously pressed
+            }
+            dieGroups.sort { $0.id < $1.id }
+        }
+    }
+    
+    @ViewBuilder
+    private var rollList: some View {
+        LazyVStack(alignment: .leading) {
+            if dieGroups.isEmpty {
+                Text("No rolls yet - tap a die below.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.title3)
+                
+            } else {
+                ForEach(dieGroups) { dieGroup in
+                    HStack {
+                        CountBadge(diceCount: dieGroup.rollValues.count)
+                        
+                        Text(dieGroup.diceLabel)
+                            .fontWeight(.semibold)
+                            .padding(.trailing, 6)
+                        
+                        Text("\(dieGroup.rollString)")
+                            .foregroundStyle(.secondary)
+                            .italic()
+                        
+                        Spacer()
+                        
+                        Text("\(dieGroup.subTotal)")
+                    }
+                    .font(.title3)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    
+                    Divider()
+                }
+                
+                HStack {
+                    Text("Total: \(grandTotal)")
+                        .font(.title2)
+                        .bold()
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    
+                    Spacer()
+                    
+                    Button("Clear") {
+                        withAnimation(.snappy) {
+                            dieGroups.removeAll()
+                            message = "Roll a die!"
+                        }
+                    }
+                    .buttonStyle(.glass)
+                    .tint(.red)
+                    .disabled(dieGroups.isEmpty)
+                }
+            }
+        }
     }
 }
 
